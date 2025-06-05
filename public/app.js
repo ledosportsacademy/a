@@ -44,16 +44,23 @@ const api = {
         };
 
         try {
+            console.log('Making API request to:', `${API_URL}${endpoint}`);
             const response = await fetch(`${API_URL}${endpoint}`, {
                 ...options,
                 headers
             });
 
+            console.log('Response status:', response.status);
+            
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const errorData = await response.json().catch(() => ({}));
+                console.error('API error:', errorData);
+                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
             }
 
-            return await response.json();
+            const data = await response.json();
+            console.log('API response data:', data);
+            return data;
         } catch (error) {
             console.error('API request failed:', error);
             throw error;
@@ -379,8 +386,21 @@ function initWeeks() {
 // Function to load and display members
 async function loadData() {
     try {
+        console.log('Loading members data...');
         const members = await api.getMembers();
+        console.log('Received members:', members);
+
+        if (!Array.isArray(members)) {
+            console.error('Invalid members data received:', members);
+            throw new Error('Invalid data received from server');
+        }
+
         const membersTableBody = document.querySelector('#membersTable tbody');
+        if (!membersTableBody) {
+            console.error('Members table body not found');
+            throw new Error('Members table not found in the document');
+        }
+
         membersTableBody.innerHTML = '';
 
         members.forEach(member => {
@@ -411,10 +431,11 @@ async function loadData() {
             membersTableBody.appendChild(row);
         });
 
-        updateSummaryCards();
+        console.log('Members data loaded successfully');
+        await updateSummaryCards();
     } catch (error) {
         console.error('Error loading members:', error);
-        alert('Error loading members. Please try again.');
+        alert('Error loading members. Please try again. Details: ' + error.message);
     }
 }
 
