@@ -251,45 +251,25 @@ async function init() {
         // Check authentication and show/hide admin elements
         const isAdmin = !!localStorage.getItem('authToken');
         
-        // Hide admin-only sections by default
+        // Hide only admin control sections
         document.querySelectorAll('.admin-only').forEach(el => {
             el.style.display = 'none';
         });
         document.getElementById('adminPanel').style.display = 'none';
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            if (btn.getAttribute('data-tab') === 'expenses' || 
-                btn.getAttribute('data-tab') === 'donations') {
-                btn.style.display = 'none';
-            }
-        });
-        document.getElementById('expenses-tab').style.display = 'none';
-        document.getElementById('donations-tab').style.display = 'none';
 
         if (isAdmin) {
-            // Show admin elements
+            // Show admin controls
             document.querySelectorAll('.admin-only').forEach(el => {
                 el.style.display = el.tagName.toLowerCase() === 'td' ? 'table-cell' : 'block';
             });
-            document.querySelectorAll('.auth-only').forEach(el => {
-                el.style.display = 'none';
-            });
             document.getElementById('adminToggle').textContent = 'Logout';
             document.getElementById('adminPanel').style.display = 'block';
-            
-            // Show admin tabs
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.style.display = 'block';
-            });
-            document.getElementById('expenses-tab').style.display = 'block';
-            document.getElementById('donations-tab').style.display = 'block';
-
-            // Load admin data
-            await loadExpenses();
-            await loadDonations();
         }
 
-        // Load members data (will be filtered based on auth status)
+        // Load all data
         await loadData();
+        await loadExpenses();
+        await loadDonations();
     } catch (error) {
         console.error('Initialization error:', error);
         alert('Error initializing application: ' + error.message);
@@ -509,7 +489,7 @@ async function loadData() {
                 </td>
                 <td>${formatMemberId(member._id)}</td>
                 <td>${member.name}</td>
-                <td class="admin-only" style="display: none;">${member.phone}</td>
+                <td>${member.phone}</td>
                 <td>
                     <span class="badge ${isPaid ? 'badge-success' : 'badge-danger'}">
                         ${isPaid ? 'Paid' : 'Unpaid'}
@@ -534,7 +514,7 @@ async function loadData() {
             <th>Photo</th>
             <th>ID</th>
             <th>Name</th>
-            ${isAdmin ? '<th>Phone</th>' : ''}
+            <th>Phone</th>
             <th>Status</th>
             ${isAdmin ? '<th>Actions</th>' : ''}
         `;
@@ -663,15 +643,11 @@ async function loadExpenses() {
             tbody.appendChild(row);
         });
 
-        // Update table headers
-        const table = document.querySelector('#expensesTable');
-        const headerRow = table.querySelector('thead tr');
-        headerRow.innerHTML = `
-            <th>Date</th>
-            <th>Description</th>
-            <th>Amount</th>
-            ${isAdmin ? '<th>Actions</th>' : ''}
-        `;
+        // Show add expense form only for admin
+        const addExpenseForm = document.querySelector('#addExpenseForm');
+        if (addExpenseForm) {
+            addExpenseForm.style.display = isAdmin ? 'block' : 'none';
+        }
     } catch (error) {
         console.error('Error loading expenses:', error);
         alert('Error loading expenses: ' + error.message);
@@ -737,6 +713,12 @@ async function loadDonations() {
             `;
             tbody.appendChild(row);
         });
+
+        // Show add donation form only for admin
+        const addDonationForm = document.querySelector('#addDonationForm');
+        if (addDonationForm) {
+            addDonationForm.style.display = isAdmin ? 'block' : 'none';
+        }
     } catch (error) {
         console.error('Error loading donations:', error);
         alert('Error loading donations: ' + error.message);
