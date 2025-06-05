@@ -1,7 +1,7 @@
 // API Configuration
 const API_URL = window.location.hostname === 'localhost' 
-    ? 'http://localhost:5000/api'
-    : `${window.location.origin}/api`;
+    ? 'http://localhost:3000'
+    : window.location.origin;
 let authToken = localStorage.getItem('authToken');
 
 // Constants for week calculation
@@ -37,24 +37,42 @@ const formatMemberId = (id) => {
 
 const api = {
     async request(endpoint, options = {}) {
-        const baseOptions = {
-            headers: {
-                'Content-Type': 'application/json'
+        try {
+            const baseOptions = {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+
+            if (localStorage.getItem('authToken')) {
+                baseOptions.headers['Authorization'] = `Bearer ${localStorage.getItem('authToken')}`;
             }
-        };
 
-        if (localStorage.getItem('authToken')) {
-            baseOptions.headers['Authorization'] = `Bearer ${localStorage.getItem('authToken')}`;
+            const url = endpoint.startsWith('http') ? endpoint : `${API_URL}${endpoint}`;
+            console.log('Making API request to:', url);
+
+            const response = await fetch(url, { ...baseOptions, ...options });
+            
+            // First check if the response is JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Server returned non-JSON response');
+            }
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || `HTTP error! status: ${response.status}`);
+            }
+
+            return data;
+        } catch (error) {
+            console.error('API request failed:', error);
+            if (error.message.includes('<!DOCTYPE')) {
+                throw new Error('Server error: Application may need to be restarted');
+            }
+            throw error;
         }
-
-        const response = await fetch(endpoint, { ...baseOptions, ...options });
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.message || 'Server error');
-        }
-
-        return data;
     },
 
     // Auth endpoints
@@ -83,74 +101,74 @@ const api = {
 
     // Members endpoints
     async getMembers() {
-        return await this.request('/members');
+        return await this.request('/api/members');
     },
 
     async getMember(id) {
-        return await this.request(`/members/${id}`);
+        return await this.request(`/api/members/${id}`);
     },
 
     async addMember(data) {
-        return await this.request('/members', {
+        return await this.request('/api/members', {
             method: 'POST',
             body: JSON.stringify(data)
         });
     },
 
     async updateMember(id, data) {
-        return await this.request(`/members/${id}`, {
+        return await this.request(`/api/members/${id}`, {
             method: 'PUT',
             body: JSON.stringify(data)
         });
     },
 
     async deleteMember(id) {
-        return await this.request(`/members/${id}`, {
+        return await this.request(`/api/members/${id}`, {
             method: 'DELETE'
         });
     },
 
     // Payments endpoints
     async getPayments(weekNumber, year) {
-        return await this.request(`/payments?weekNumber=${weekNumber}&year=${year}`);
+        return await this.request(`/api/payments?weekNumber=${weekNumber}&year=${year}`);
     },
 
     async recordPayment(data) {
-        return await this.request('/payments', {
+        return await this.request('/api/payments', {
             method: 'POST',
             body: JSON.stringify(data)
         });
     },
 
     async getPaymentStats(weekNumber, year) {
-        return await this.request(`/payments/stats?weekNumber=${weekNumber}&year=${year}`);
+        return await this.request(`/api/payments/stats?weekNumber=${weekNumber}&year=${year}`);
     },
 
     // Expenses endpoints
     async getExpenses() {
-        return await this.request('/expenses');
+        return await this.request('/api/expenses');
     },
 
     async addExpense(data) {
-        return await this.request('/expenses', {
+        return await this.request('/api/expenses', {
             method: 'POST',
             body: JSON.stringify(data)
         });
     },
 
     async deleteExpense(id) {
-        return await this.request(`/expenses/${id}`, {
+        return await this.request(`/api/expenses/${id}`, {
             method: 'DELETE'
         });
     },
 
     // Donations endpoints
     async getDonations() {
-        return await this.request('/donations');
+        return await this.request('/api/donations');
     },
 
     async addDonation(data) {
-        return await this.request('/donations', {
+        return await this.request('/api/donations', {
             method: 'POST',
             body: JSON.stringify(data)
         });
