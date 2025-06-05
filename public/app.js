@@ -186,6 +186,27 @@ const currentDate = new Date();
 const currentWeek = getWeekNumber(currentDate);
 const currentYear = currentDate.getFullYear();
 
+// Payment status tracking
+let paymentStatusCache = new Map();
+
+// Function to get payment status
+async function updatePaymentStatuses(weekNumber = currentWeek, year = currentYear) {
+    try {
+        const payments = await api.getPayments(weekNumber, year);
+        paymentStatusCache.clear();
+        payments.forEach(payment => {
+            paymentStatusCache.set(payment.member, true);
+        });
+    } catch (error) {
+        console.error('Error updating payment statuses:', error);
+    }
+}
+
+// Function to get payment status for a member
+function getPaymentStatus(memberId) {
+    return paymentStatusCache.get(memberId) || false;
+}
+
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
     // Handle logo image loading
@@ -387,6 +408,10 @@ function initWeeks() {
 async function loadData() {
     try {
         console.log('Loading members data...');
+        
+        // First update payment statuses
+        await updatePaymentStatuses();
+        
         const members = await api.getMembers();
         console.log('Received members:', members);
 
@@ -406,6 +431,7 @@ async function loadData() {
         members.forEach(member => {
             const row = document.createElement('tr');
             const isAdmin = !!localStorage.getItem('authToken');
+            const isPaid = getPaymentStatus(member._id);
             
             row.innerHTML = `
                 <td>
@@ -415,13 +441,13 @@ async function loadData() {
                 <td>${member.name}</td>
                 <td>${member.phone}</td>
                 <td>
-                    <span class="badge ${getPaymentStatus(member._id) ? 'badge-success' : 'badge-danger'}">
-                        ${getPaymentStatus(member._id) ? 'Paid' : 'Unpaid'}
+                    <span class="badge ${isPaid ? 'badge-success' : 'badge-danger'}">
+                        ${isPaid ? 'Paid' : 'Unpaid'}
                     </span>
                 </td>
                 <td>
                     ${isAdmin ? `
-                        <button onclick="showPaymentModal('${member._id}')" class="btn btn-sm btn-success">Pay</button>
+                        ${!isPaid ? `<button onclick="showPaymentModal('${member._id}')" class="btn btn-sm btn-success">Pay</button>` : ''}
                         <button onclick="editMember('${member._id}')" class="btn btn-sm btn-edit">Edit</button>
                         <button onclick="deleteMember('${member._id}')" class="btn btn-sm btn-delete">Delete</button>
                     ` : ''}
@@ -497,14 +523,14 @@ async function handleRecordPayment(e) {
     const memberId = document.getElementById('paymentMemberId').value;
     const amount = parseFloat(document.getElementById('paymentAmountModal').value);
     const weekNumber = parseInt(document.getElementById('paymentWeek').value);
-    const year = 2025; // Fixed year as 2025
+    const year = parseInt(document.getElementById('paymentYear').value);
 
     try {
         await api.recordPayment({ member: memberId, amount, weekNumber, year });
         alert('Payment recorded successfully!');
         paymentModal.style.display = 'none';
-        loadData();
-        updateSummaryCards();
+        await updatePaymentStatuses(weekNumber, year);
+        await loadData();
     } catch (error) {
         alert('Error recording payment: ' + error.message);
     }
