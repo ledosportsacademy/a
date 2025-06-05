@@ -936,4 +936,96 @@ footer {
 
 .admin-only {
     margin: 1rem 0;
+}
+
+/* Enhanced Purpose of Membership Fund section */
+.purpose-section {
+    margin: 1.5rem 0;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border-left: 4px solid var(--secondary);
+}
+
+.purpose-content {
+    padding: 0.5rem 0;
+}
+
+.purpose-content p {
+    color: var(--primary);
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+}
+
+.purpose-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.purpose-list li {
+    position: relative;
+    padding-left: 1.5rem;
+    margin-bottom: 0.8rem;
+    color: #4a5568;
+    line-height: 1.6;
+}
+
+.purpose-list li::before {
+    content: "•";
+    color: var(--secondary);
+    font-size: 1.5rem;
+    position: absolute;
+    left: 0;
+    top: -0.2rem;
+}
+
+@media (max-width: 768px) {
+    .purpose-section {
+        margin: 1rem 0;
+        padding: 1rem;
+    }
+
+    .purpose-content p {
+        font-size: 1rem;
+    }
+
+    .purpose-list li {
+        font-size: 0.95rem;
+        padding-left: 1.2rem;
+        margin-bottom: 0.6rem;
+    }
+}
+
+/* Enhanced mobile responsiveness for members section */
+@media (max-width: 480px) {
+    .members-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .member-card .member-photo {
+        height: 180px;
+    }
+
+    .member-card .member-info {
+        padding: 0.8rem;
+    }
+
+    .member-card h3 {
+        font-size: 1.1rem;
+    }
+
+    .member-card p {
+        font-size: 0.9rem;
+    }
+
+    .member-card .admin-controls {
+        flex-direction: row;
+        gap: 0.5rem;
+    }
+
+    .member-card .admin-controls .btn {
+        flex: 1;
+        padding: 0.6rem;
+        font-size: 0.9rem;
+    }
 } 
