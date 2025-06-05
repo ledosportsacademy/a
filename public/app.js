@@ -88,23 +88,37 @@ const api = {
     // Auth endpoints
     async login(email, password) {
         try {
-            const response = await this.request('/auth/login', {
+            console.log('Attempting login for:', email);
+            const response = await fetch(`${API_URL}/api/auth/login`, {
                 method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify({ email, password })
             });
+
+            // Check if response is JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                console.error('Non-JSON response received:', await response.text());
+                throw new Error('Server returned non-JSON response');
+            }
+
+            const data = await response.json();
             
-            if (response.token) {
-                authToken = response.token;
-                localStorage.setItem('authToken', authToken);
-                return response;
-            } else {
+            if (!response.ok) {
+                throw new Error(data.message || 'Login failed');
+            }
+
+            if (!data.token) {
                 throw new Error('No token received from server');
             }
+
+            // Store the token
+            localStorage.setItem('authToken', data.token);
+            return data;
         } catch (error) {
-            console.error('Login failed:', error);
-            if (error.message.includes('Failed to fetch')) {
-                throw new Error('Unable to connect to the server. Please check your internet connection and try again.');
-            }
+            console.error('Login error:', error);
             throw error;
         }
     },
@@ -237,11 +251,23 @@ async function init() {
         // Check authentication and show/hide admin elements
         const authToken = localStorage.getItem('authToken');
         if (authToken) {
-            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block');
-            document.querySelectorAll('.auth-only').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.admin-only').forEach(el => {
+                el.style.display = el.tagName.toLowerCase() === 'td' ? 'table-cell' : 'block';
+            });
+            document.querySelectorAll('.auth-only').forEach(el => {
+                el.style.display = 'none';
+            });
+            document.getElementById('adminToggle').textContent = 'Logout';
+            document.getElementById('adminPanel').style.display = 'block';
         } else {
-            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
-            document.querySelectorAll('.auth-only').forEach(el => el.style.display = 'block');
+            document.querySelectorAll('.admin-only').forEach(el => {
+                el.style.display = 'none';
+            });
+            document.querySelectorAll('.auth-only').forEach(el => {
+                el.style.display = 'block';
+            });
+            document.getElementById('adminToggle').textContent = 'Click to Login';
+            document.getElementById('adminPanel').style.display = 'none';
         }
 
         // Load initial data
@@ -302,9 +328,9 @@ function checkAuth() {
 }
 
 // Modify the login handler
-document.getElementById('authButton').addEventListener('click', async (e) => {
+async function handleLogin(e) {
     e.preventDefault();
-    const email = document.getElementById('authEmail').value;
+    const email = document.getElementById('authEmail').value.trim();
     const password = document.getElementById('authPassword').value;
 
     if (!email || !password) {
@@ -313,29 +339,45 @@ document.getElementById('authButton').addEventListener('click', async (e) => {
     }
 
     try {
-        await api.login(email, password);
-        alert('Login successful!');
+        const data = await api.login(email, password);
+        console.log('Login successful');
+        
+        // Update UI
         document.getElementById('authContainer').style.display = 'none';
         document.getElementById('adminToggle').textContent = 'Logout';
-        adminPanel.style.display = 'block';
-        updateUIForAdminStatus();
-        loadData();
+        document.getElementById('adminPanel').style.display = 'block';
+        
+        // Show admin elements
+        document.querySelectorAll('.admin-only').forEach(el => {
+            el.style.display = el.tagName.toLowerCase() === 'td' ? 'table-cell' : 'block';
+        });
+
+        // Reload data
+        await loadData();
+        await loadExpenses();
+        await loadDonations();
     } catch (error) {
+        console.error('Login failed:', error);
         alert('Login failed: ' + error.message);
     }
-});
+}
 
 // Modify the admin toggle handler
 adminToggle.addEventListener('click', () => {
     const authContainer = document.getElementById('authContainer');
+    const authToken = localStorage.getItem('authToken');
+
     if (authToken) {
+        // Logout
         localStorage.removeItem('authToken');
-        authToken = null;
-        adminPanel.style.display = 'none';
+        document.querySelectorAll('.admin-only').forEach(el => {
+            el.style.display = 'none';
+        });
+        document.getElementById('adminPanel').style.display = 'none';
         adminToggle.textContent = 'Click to Login';
-        updateUIForAdminStatus();
         location.reload();
     } else {
+        // Show/hide login form
         authContainer.style.display = authContainer.style.display === 'none' ? 'block' : 'none';
         adminToggle.textContent = authContainer.style.display === 'none' ? 'Click to Login' : 'Hide Login';
     }
@@ -409,6 +451,11 @@ function setupEventListeners() {
     document.getElementById('memberPhoto').addEventListener('change', function() {
         handleUrlPreview(this, 'photoPreview');
     });
+
+    // Login form submission
+    if (authButton) {
+        authButton.addEventListener('click', handleLogin);
+    }
 }
 
 // Function to load and display members
