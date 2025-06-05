@@ -208,23 +208,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Function to update UI based on admin status
 function updateUIForAdminStatus() {
-    const isAdmin = !!authToken;
-    const adminOnlyElements = document.querySelectorAll('.admin-only');
-    
-    adminOnlyElements.forEach(element => {
-        element.style.display = isAdmin ? '' : 'none';
-    });
-
-    // Update table layouts based on admin status
-    const tables = ['membersTable', 'expensesTable', 'donationsTable'];
-    tables.forEach(tableId => {
-        const table = document.getElementById(tableId);
-        if (table) {
-            const actionCells = table.querySelectorAll('th:last-child, td:last-child');
-            actionCells.forEach(cell => {
-                cell.style.display = isAdmin ? '' : 'none';
-            });
-        }
+    const isAdmin = !!localStorage.getItem('authToken');
+    const adminElements = document.querySelectorAll('.admin-only');
+    adminElements.forEach(element => {
+        element.style.display = isAdmin ? 'block' : 'none';
     });
 }
 
@@ -389,103 +376,39 @@ function initWeeks() {
     }
 }
 
-// Load all data
+// Function to load and display members
 async function loadData() {
     try {
-        await Promise.all([
-            loadMembers(),
-            loadExpenses(),
-            loadDonations(),
-            updateSummaryCards()
-        ]);
-    } catch (error) {
-        console.error('Error loading data:', error);
-    }
-}
-
-// Load members
-async function loadMembers() {
-    try {
         const members = await api.getMembers();
-        const selectedWeek = document.querySelector('.week-btn.active')?.dataset.weekNumber || currentWeek;
-        const payments = await api.getPayments(selectedWeek, currentYear);
-        const paidMemberIds = payments.map(p => p.member._id);
-        
-        // Update the members table
-        renderMembers(members, paidMemberIds);
-        
-        // Update summary cards after loading members
-        await updateSummaryCards();
+        const membersList = document.getElementById('membersList');
+        membersList.innerHTML = '';
+
+        members.forEach(member => {
+            const memberCard = document.createElement('div');
+            memberCard.className = 'member-card';
+            
+            const isAdmin = !!localStorage.getItem('authToken');
+            
+            memberCard.innerHTML = `
+                <img src="${member.photo || DEFAULT_AVATAR}" alt="${member.name}" class="member-photo">
+                <div class="member-info">
+                    <h3>${member.name}</h3>
+                    <p>${member.phone}</p>
+                    ${isAdmin ? `
+                        <div class="admin-controls">
+                            <button onclick="editMember('${member._id}')" class="btn btn-edit">Edit</button>
+                            <button onclick="deleteMember('${member._id}')" class="btn btn-delete">Delete</button>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            membersList.appendChild(memberCard);
+        });
     } catch (error) {
         console.error('Error loading members:', error);
+        alert('Error loading members. Please try again.');
     }
-}
-
-// Render members
-function renderMembers(members, paidMemberIds) {
-    const tbody = document.querySelector('#membersTable tbody');
-    tbody.innerHTML = '';
-
-    members.forEach((member, index) => {
-        const isPaid = paidMemberIds.includes(member._id);
-        const row = document.createElement('tr');
-        
-        row.innerHTML = `
-            <td>
-                <img src="${member.photo || DEFAULT_AVATAR}" 
-                     alt="${member.name}" 
-                     class="member-photo"
-                     onerror="this.src='${DEFAULT_AVATAR}'"
-                     data-name="${member.name}"
-                     data-original-photo="${member.photo || ''}">
-            </td>
-            <td>${formatMemberId(index + 1)}</td>
-            <td>${member.name}</td>
-            <td>${member.phone}</td>
-            <td><span class="badge ${isPaid ? 'badge-success' : 'badge-danger'}">${isPaid ? 'Paid' : 'Unpaid'}</span></td>
-            ${authToken ? `<td class="admin-only">
-                <button class="btn btn-sm btn-primary edit-member-btn" data-id="${member._id}">Edit</button>
-                <button class="btn btn-sm btn-success mark-paid-btn" data-id="${member._id}">${isPaid ? 'Edit Pay' : 'Pay'}</button>
-                <button class="btn btn-sm btn-danger delete-member-btn" data-id="${member._id}">Delete</button>
-            </td>` : ''}
-        `;
-
-        // Add click event for member photo
-        const memberPhotoElement = row.querySelector('.member-photo');
-        memberPhotoElement.addEventListener('click', (e) => {
-            const originalPhoto = e.target.dataset.originalPhoto;
-            modalImage.src = originalPhoto || DEFAULT_AVATAR;
-            modalMemberName.textContent = e.target.dataset.name;
-            imageModal.style.display = 'flex';
-            
-            modalImage.onerror = () => {
-                modalImage.src = DEFAULT_AVATAR;
-            };
-        });
-
-        if (authToken) {
-            // Add admin-only event listeners
-            row.querySelector('.edit-member-btn').addEventListener('click', () => {
-                openEditModal(member);
-            });
-
-            row.querySelector('.mark-paid-btn').addEventListener('click', () => {
-                document.getElementById('paymentMemberId').value = member._id;
-                document.getElementById('paymentAmountModal').value = document.getElementById('paymentAmount').value;
-                document.getElementById('paymentWeek').value = currentWeek;
-                document.getElementById('paymentYear').value = currentYear;
-                paymentModal.style.display = 'flex';
-            });
-
-            row.querySelector('.delete-member-btn').addEventListener('click', async () => {
-                if (confirm('Are you sure you want to delete this member?')) {
-                    await handleDeleteMember(member._id);
-                }
-            });
-        }
-
-        tbody.appendChild(row);
-    });
 }
 
 // Handle URL preview
@@ -521,7 +444,7 @@ async function handleAddMember(e) {
         alert('Member added successfully!');
         document.getElementById('addMemberForm').reset();
         document.getElementById('photoPreview').src = DEFAULT_AVATAR;
-        loadMembers();
+        loadData();
         updateSummaryCards();
     } catch (error) {
         alert('Error adding member: ' + error.message);
@@ -533,7 +456,7 @@ async function handleDeleteMember(id) {
     try {
         await api.deleteMember(id);
         alert('Member deleted successfully!');
-        loadMembers();
+        loadData();
         updateSummaryCards();
     } catch (error) {
         alert('Error deleting member: ' + error.message);
@@ -552,7 +475,7 @@ async function handleRecordPayment(e) {
         await api.recordPayment({ member: memberId, amount, weekNumber, year });
         alert('Payment recorded successfully!');
         paymentModal.style.display = 'none';
-        loadMembers();
+        loadData();
         updateSummaryCards();
     } catch (error) {
         alert('Error recording payment: ' + error.message);
@@ -963,7 +886,7 @@ async function handleEditMember(e) {
         await api.updateMember(memberId, updateData);
         alert('Member details updated successfully!');
         editMemberModal.style.display = 'none';
-        loadMembers();
+        loadData();
     } catch (error) {
         alert('Error updating member: ' + error.message);
     }
