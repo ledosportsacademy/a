@@ -15,18 +15,34 @@ const allowedOrigins = [
     'https://final-kfwg.onrender.com',
     'http://localhost:5000',
     'http://localhost:3000',
-    'https://ledo-sports-academy.onrender.com'  // Add your Render.com domain
+    'https://ledo-sports-academy.onrender.com',
+    'https://ledo.onrender.com'
 ];
+
+// Log the actual origin for debugging
+app.use((req, res, next) => {
+    console.log('Incoming request origin:', req.headers.origin);
+    next();
+});
 
 app.use(cors({
     origin: function(origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
+        console.log('Checking origin:', origin);
         
-        if (allowedOrigins.indexOf(origin) === -1) {
-            return callback(new Error('CORS policy violation'), false);
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) {
+            console.log('No origin provided, allowing request');
+            return callback(null, true);
         }
-        return callback(null, true);
+
+        // Check if the origin is allowed
+        if (allowedOrigins.includes(origin) || origin.endsWith('.onrender.com')) {
+            console.log('Origin allowed:', origin);
+            callback(null, true);
+        } else {
+            console.log('Origin not allowed:', origin);
+            callback(new Error('Not allowed by CORS'));
+        }
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
