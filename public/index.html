@@ -48,6 +48,16 @@
 
         <div class="card">
             <h2 class="section-title">Members List</h2>
+            
+            <!-- Admin Controls -->
+            <div class="admin-only">
+                <button id="addMemberBtn" class="btn btn-primary">Add New Member</button>
+            </div>
+
+            <!-- Members Grid View -->
+            <div id="membersList" class="members-grid"></div>
+
+            <!-- Members Table View -->
             <div class="table-responsive">
                 <table id="membersTable">
                     <thead>
@@ -64,19 +74,6 @@
                 </table>
             </div>
         </div>
-
-        <!-- Members Section -->
-        <section id="members" class="section">
-            <h2 class="section-title">Members</h2>
-            
-            <!-- Admin Controls -->
-            <div class="admin-only">
-                <button id="addMemberBtn" class="btn btn-primary">Add New Member</button>
-            </div>
-
-            <!-- Members List -->
-            <div id="membersList" class="members-grid"></div>
-        </section>
 
         <!-- Admin Login -->
         <div class="admin-login-container">
