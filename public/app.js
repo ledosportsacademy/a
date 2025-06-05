@@ -380,31 +380,38 @@ function initWeeks() {
 async function loadData() {
     try {
         const members = await api.getMembers();
-        const membersList = document.getElementById('membersList');
-        membersList.innerHTML = '';
+        const membersTableBody = document.querySelector('#membersTable tbody');
+        membersTableBody.innerHTML = '';
 
         members.forEach(member => {
-            const memberCard = document.createElement('div');
-            memberCard.className = 'member-card';
-            
+            const row = document.createElement('tr');
             const isAdmin = !!localStorage.getItem('authToken');
             
-            memberCard.innerHTML = `
-                <img src="${member.photo || DEFAULT_AVATAR}" alt="${member.name}" class="member-photo">
-                <div class="member-info">
-                    <h3>${member.name}</h3>
-                    <p>${member.phone}</p>
+            row.innerHTML = `
+                <td>
+                    <img src="${member.photo || DEFAULT_AVATAR}" alt="${member.name}" class="member-photo" onclick="showImageModal('${member.photo || DEFAULT_AVATAR}', '${member.name}')">
+                </td>
+                <td>${formatMemberId(member._id)}</td>
+                <td>${member.name}</td>
+                <td>${member.phone}</td>
+                <td>
+                    <span class="badge ${getPaymentStatus(member._id) ? 'badge-success' : 'badge-danger'}">
+                        ${getPaymentStatus(member._id) ? 'Paid' : 'Unpaid'}
+                    </span>
+                </td>
+                <td>
                     ${isAdmin ? `
-                        <div class="admin-controls">
-                            <button onclick="editMember('${member._id}')" class="btn btn-edit">Edit</button>
-                            <button onclick="deleteMember('${member._id}')" class="btn btn-delete">Delete</button>
-                        </div>
+                        <button onclick="showPaymentModal('${member._id}')" class="btn btn-sm btn-success">Pay</button>
+                        <button onclick="editMember('${member._id}')" class="btn btn-sm btn-edit">Edit</button>
+                        <button onclick="deleteMember('${member._id}')" class="btn btn-sm btn-delete">Delete</button>
                     ` : ''}
-                </div>
+                </td>
             `;
             
-            membersList.appendChild(memberCard);
+            membersTableBody.appendChild(row);
         });
+
+        updateSummaryCards();
     } catch (error) {
         console.error('Error loading members:', error);
         alert('Error loading members. Please try again.');
