@@ -53,18 +53,12 @@ app.use(cors({
 app.use(express.json());
 
 // MongoDB Connection
-const MONGODB_URI = process.env.MONGODB_URI;
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://ledosportsacademy:KYbsTxWjVBvPnREP@ledosportsacademy.ejcd06z.mongodb.net/ledosportsacademy?retryWrites=true&w=majority';
 
 console.log('Environment Check:');
 console.log('PORT:', process.env.PORT);
 console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('MongoDB URI exists:', !!process.env.MONGODB_URI);
-
-if (!MONGODB_URI) {
-    console.error('MONGODB_URI environment variable is not set');
-    console.error('Please make sure you have set up your environment variables correctly');
-    process.exit(1);
-}
+console.log('MongoDB URI exists:', !!MONGODB_URI);
 
 mongoose.connect(MONGODB_URI, {
     useNewUrlParser: true,
