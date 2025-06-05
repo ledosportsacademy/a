@@ -8,16 +8,26 @@ let authToken = localStorage.getItem('authToken');
 const WEEK_START_DATE = new Date(2025, 5, 1); // June 1st, 2025 (month is 0-based)
 const DEFAULT_AVATAR = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiB2aWV3Qm94PSIwIDAgNTEyIDUxMiI+PHBhdGggZmlsbD0iI2U2ZTZlNiIgZD0iTTAgMGg1MTJ2NTEySDB6Ii8+PHBhdGggZmlsbD0iIzk5OSIgZD0iTTI1NiAzMDRjNjEuNiAwIDExMi04OS40IDExMi0yMDAgMC04OC40LTUwLjQtODAtMTEyLTgwcy0xMTItOC40LTExMiA4MGMwIDExMC42IDUwLjQgMjAwIDExMiAyMDB6bS0xNiA0MGMtNjYuOCAwLTEyOCA0OC44LTEyOCAxMDguNFY1MTJoMjg4di01OS42YzAtNTkuNi02MS4yLTEwOC40LTEyOC0xMDguNHoiLz48L3N2Zz4=';
 
-// Utility Functions
-const formatDate = (date) => {
-    const options = { 
-        day: 'numeric',
+// Utility functions
+function formatDate(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return ''; // Invalid date
+    return date.toLocaleDateString('en-IN', {
+        year: 'numeric',
         month: 'short',
-        year: 'numeric'
-    };
-    return date.toLocaleDateString('en-US', options);
-};
-const formatCurrency = (amount) => `₹${parseFloat(amount).toFixed(2)}`;
+        day: 'numeric'
+    });
+}
+
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }).format(amount);
+}
 
 const formatWeekDisplay = (weekNumber, startDate, endDate) => {
     return `Week ${weekNumber} (${formatDate(startDate)} - ${formatDate(endDate)})`;
@@ -558,32 +568,40 @@ async function loadExpenses() {
 
 // Render expenses
 function renderExpenses(expenses) {
-    const tbody = document.querySelector('#expensesTable tbody');
-    tbody.innerHTML = '';
-
-    expenses.forEach(expense => {
-        const row = document.createElement('tr');
-        const date = formatDate(expense.createdAt);
-        
-        row.innerHTML = `
-            <td>${date}</td>
-            <td>${expense.description}</td>
-            <td>${formatCurrency(expense.amount)}</td>
-            ${authToken ? `<td class="admin-only">
-                <button class="btn btn-sm btn-danger delete-expense-btn" data-id="${expense._id}">Delete</button>
-            </td>` : ''}
-        `;
-
-        if (authToken) {
-            row.querySelector('.delete-expense-btn').addEventListener('click', async () => {
-                if (confirm('Are you sure you want to delete this expense?')) {
-                    await handleDeleteExpense(expense._id);
-                }
-            });
+    try {
+        const tbody = document.querySelector('#expensesTable tbody');
+        if (!tbody) {
+            console.error('Expenses table body not found');
+            return;
         }
 
-        tbody.appendChild(row);
-    });
+        tbody.innerHTML = '';
+        if (!Array.isArray(expenses)) {
+            console.error('Invalid expenses data:', expenses);
+            return;
+        }
+
+        expenses.forEach(expense => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${formatDate(expense.createdAt)}</td>
+                <td>${expense.description}</td>
+                <td>${formatCurrency(expense.amount)}</td>
+                <td class="admin-only" style="display: none;">
+                    <button onclick="deleteExpense('${expense._id}')" class="btn btn-sm btn-danger">Delete</button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+
+        // Show/hide admin controls
+        const isAdmin = !!localStorage.getItem('authToken');
+        document.querySelectorAll('.admin-only').forEach(el => {
+            el.style.display = isAdmin ? 'table-cell' : 'none';
+        });
+    } catch (error) {
+        console.error('Error rendering expenses:', error);
+    }
 }
 
 // Handle add expense
@@ -608,18 +626,18 @@ async function handleAddExpense(e) {
     }
 }
 
-// Handle delete expense
-async function handleDeleteExpense(id) {
-    if (!authToken) {
-        alert('Please login as admin to delete expenses');
+// Delete expense function
+async function deleteExpense(expenseId) {
+    if (!confirm('Are you sure you want to delete this expense?')) {
         return;
     }
+
     try {
-        await api.deleteExpense(id);
+        await api.deleteExpense(expenseId);
         alert('Expense deleted successfully!');
-        loadExpenses();
-        updateSummaryCards();
+        await loadExpenses();
     } catch (error) {
+        console.error('Error deleting expense:', error);
         alert('Error deleting expense: ' + error.message);
     }
 }
@@ -636,21 +654,31 @@ async function loadDonations() {
 
 // Render donations
 function renderDonations(donations) {
-    const tbody = document.querySelector('#donationsTable tbody');
-    tbody.innerHTML = '';
+    try {
+        const tbody = document.querySelector('#donationsTable tbody');
+        if (!tbody) {
+            console.error('Donations table body not found');
+            return;
+        }
 
-    donations.forEach(donation => {
-        const row = document.createElement('tr');
-        const date = formatDate(donation.createdAt);
-        
-        row.innerHTML = `
-            <td>${date}</td>
-            <td>${donation.donorName}</td>
-            <td>${formatCurrency(donation.amount)}</td>
-        `;
+        tbody.innerHTML = '';
+        if (!Array.isArray(donations)) {
+            console.error('Invalid donations data:', donations);
+            return;
+        }
 
-        tbody.appendChild(row);
-    });
+        donations.forEach(donation => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${formatDate(donation.createdAt)}</td>
+                <td>${donation.donorName}</td>
+                <td>${formatCurrency(donation.amount)}</td>
+            `;
+            tbody.appendChild(row);
+        });
+    } catch (error) {
+        console.error('Error rendering donations:', error);
+    }
 }
 
 // Handle add donation
@@ -986,71 +1014,5 @@ async function deleteMember(memberId) {
     } catch (error) {
         console.error('Error deleting member:', error);
         alert('Error deleting member: ' + error.message);
-    }
-}
-
-// Handle add expense
-async function handleAddExpense(e) {
-    e.preventDefault();
-    const description = document.getElementById('expenseDescription').value;
-    const amount = parseFloat(document.getElementById('expenseAmount').value);
-
-    if (!description || isNaN(amount)) {
-        alert('Please fill in all expense details correctly');
-        return;
-    }
-
-    try {
-        await api.addExpense({ description, amount });
-        alert('Expense added successfully!');
-        document.getElementById('addExpenseForm').reset();
-        await loadExpenses();
-    } catch (error) {
-        console.error('Error adding expense:', error);
-        alert('Error adding expense: ' + error.message);
-    }
-}
-
-// Load and render expenses
-async function loadExpenses() {
-    try {
-        const expenses = await api.getExpenses();
-        renderExpenses(expenses);
-    } catch (error) {
-        console.error('Error loading expenses:', error);
-        alert('Error loading expenses: ' + error.message);
-    }
-}
-
-// Handle add donation
-async function handleAddDonation(e) {
-    e.preventDefault();
-    const donorName = document.getElementById('donorName').value;
-    const amount = parseFloat(document.getElementById('donationAmount').value);
-
-    if (!donorName || isNaN(amount)) {
-        alert('Please fill in all donation details correctly');
-        return;
-    }
-
-    try {
-        await api.addDonation({ donorName, amount });
-        alert('Donation recorded successfully!');
-        document.getElementById('addDonationForm').reset();
-        await loadDonations();
-    } catch (error) {
-        console.error('Error recording donation:', error);
-        alert('Error recording donation: ' + error.message);
-    }
-}
-
-// Load and render donations
-async function loadDonations() {
-    try {
-        const donations = await api.getDonations();
-        renderDonations(donations);
-    } catch (error) {
-        console.error('Error loading donations:', error);
-        alert('Error loading donations: ' + error.message);
     }
 } 
