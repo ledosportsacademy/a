@@ -517,6 +517,16 @@ async function handleDeleteMember(id) {
     }
 }
 
+// Show payment modal
+function showPaymentModal(memberId) {
+    const defaultAmount = document.getElementById('paymentAmount').value || 20;
+    document.getElementById('paymentMemberId').value = memberId;
+    document.getElementById('paymentAmountModal').value = defaultAmount;
+    document.getElementById('paymentWeek').value = currentWeek;
+    document.getElementById('paymentYear').value = currentYear;
+    paymentModal.style.display = 'block';
+}
+
 // Handle record payment
 async function handleRecordPayment(e) {
     e.preventDefault();
@@ -525,13 +535,20 @@ async function handleRecordPayment(e) {
     const weekNumber = parseInt(document.getElementById('paymentWeek').value);
     const year = parseInt(document.getElementById('paymentYear').value);
 
+    if (!memberId || isNaN(amount) || isNaN(weekNumber) || isNaN(year)) {
+        alert('Please fill in all payment details correctly');
+        return;
+    }
+
     try {
+        console.log('Recording payment:', { memberId, amount, weekNumber, year });
         await api.recordPayment({ member: memberId, amount, weekNumber, year });
         alert('Payment recorded successfully!');
         paymentModal.style.display = 'none';
         await updatePaymentStatuses(weekNumber, year);
         await loadData();
     } catch (error) {
+        console.error('Payment error:', error);
         alert('Error recording payment: ' + error.message);
     }
 }
