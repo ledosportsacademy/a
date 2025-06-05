@@ -37,34 +37,24 @@ const formatMemberId = (id) => {
 
 const api = {
     async request(endpoint, options = {}) {
-        const headers = {
-            'Content-Type': 'application/json',
-            ...(authToken && { 'Authorization': `Bearer ${authToken}` }),
-            ...options.headers
+        const baseOptions = {
+            headers: {
+                'Content-Type': 'application/json'
+            }
         };
 
-        try {
-            console.log('Making API request to:', `${API_URL}${endpoint}`);
-            const response = await fetch(`${API_URL}${endpoint}`, {
-                ...options,
-                headers
-            });
-
-            console.log('Response status:', response.status);
-            
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                console.error('API error:', errorData);
-                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            console.log('API response data:', data);
-            return data;
-        } catch (error) {
-            console.error('API request failed:', error);
-            throw error;
+        if (localStorage.getItem('authToken')) {
+            baseOptions.headers['Authorization'] = `Bearer ${localStorage.getItem('authToken')}`;
         }
+
+        const response = await fetch(endpoint, { ...baseOptions, ...options });
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Server error');
+        }
+
+        return data;
     },
 
     // Auth endpoints
@@ -96,6 +86,10 @@ const api = {
         return await this.request('/members');
     },
 
+    async getMember(id) {
+        return await this.request(`/members/${id}`);
+    },
+
     async addMember(data) {
         return await this.request('/members', {
             method: 'POST',
@@ -103,16 +97,16 @@ const api = {
         });
     },
 
-    async deleteMember(id) {
-        return await this.request(`/members/${id}`, {
-            method: 'DELETE'
-        });
-    },
-
     async updateMember(id, data) {
         return await this.request(`/members/${id}`, {
             method: 'PUT',
             body: JSON.stringify(data)
+        });
+    },
+
+    async deleteMember(id) {
+        return await this.request(`/members/${id}`, {
+            method: 'DELETE'
         });
     },
 
@@ -208,31 +202,58 @@ function getPaymentStatus(memberId) {
 }
 
 // Initialize the application
-document.addEventListener('DOMContentLoaded', () => {
-    // Handle logo image loading
-    if (logoImage) {
-        logoImage.onerror = () => {
-            console.error('Error loading logo image');
-            logoImage.style.display = 'none';
-        };
+async function init() {
+    try {
+        setupEventListeners();
         
-        logoImage.onload = () => {
-            logoImage.style.display = 'block';
-        };
-        
-        // Try loading the logo
-        const logoUrl = 'https://iili.io/F9tc8il.png';
-        if (logoImage.src !== logoUrl) {
-            logoImage.src = logoUrl;
+        // Check authentication and show/hide admin elements
+        const authToken = localStorage.getItem('authToken');
+        if (authToken) {
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block');
+            document.querySelectorAll('.auth-only').forEach(el => el.style.display = 'none');
+        } else {
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.auth-only').forEach(el => el.style.display = 'block');
         }
-    }
 
-    initWeeks();
-    checkAuth();
-    loadData();
-    setupEventListeners();
-    initYearSelector();
-});
+        // Load initial data
+        await loadData();
+        await loadExpenses();
+        await loadDonations();
+    } catch (error) {
+        console.error('Initialization error:', error);
+        alert('Error initializing application: ' + error.message);
+    }
+}
+
+// Switch between tabs
+function switchTab(tabId) {
+    // Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+
+    // Remove active class from all tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    // Show selected tab content and activate button
+    document.querySelector(`#${tabId}-tab`).classList.add('active');
+    document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+
+    // Load data for the selected tab
+    if (tabId === 'members') {
+        loadData();
+    } else if (tabId === 'expenses') {
+        loadExpenses();
+    } else if (tabId === 'donations') {
+        loadDonations();
+    }
+}
+
+// Start the application
+document.addEventListener('DOMContentLoaded', init);
 
 // Function to update UI based on admin status
 function updateUIForAdminStatus() {
@@ -356,52 +377,6 @@ function setupEventListeners() {
     document.getElementById('editMemberPhoto').addEventListener('change', function() {
         handleUrlPreview(this, 'editPhotoPreview');
     });
-}
-
-// Switch tabs
-function switchTab(tabId) {
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.getAttribute('data-tab') === tabId) {
-            btn.classList.add('active');
-        }
-    });
-
-    document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.remove('active');
-        if (content.id === `${tabId}-tab`) {
-            content.classList.add('active');
-        }
-    });
-}
-
-// Initialize weeks
-function initWeeks() {
-    const container = document.getElementById('weeksContainer');
-    container.innerHTML = '';
-    
-    const today = new Date();
-    const currentWeek = getWeekNumber(today);
-    
-    // Calculate total weeks from start date to end of 2025
-    const endOf2025 = new Date(2025, 11, 31); // December 31st, 2025
-    const totalWeeks = getWeekNumber(endOf2025);
-
-    for (let i = 1; i <= totalWeeks; i++) {
-        const weekStartDate = new Date(WEEK_START_DATE);
-        weekStartDate.setDate(weekStartDate.getDate() + (i - 1) * 7);
-        const weekEndDate = new Date(weekStartDate);
-        weekEndDate.setDate(weekEndDate.getDate() + 6);
-
-        const btn = document.createElement('button');
-        btn.className = `week-btn ${i === currentWeek ? 'active' : ''}`;
-        btn.innerHTML = `
-            <div class="week-number">Week ${i}</div>
-            <div class="week-dates">${formatDate(weekStartDate)} - ${formatDate(weekEndDate)}</div>
-        `;
-        btn.dataset.weekNumber = i;
-        container.appendChild(btn);
-    }
 }
 
 // Function to load and display members
@@ -596,20 +571,21 @@ function renderExpenses(expenses) {
 // Handle add expense
 async function handleAddExpense(e) {
     e.preventDefault();
-    if (!authToken) {
-        alert('Please login as admin to add expenses');
-        return;
-    }
     const description = document.getElementById('expenseDescription').value;
     const amount = parseFloat(document.getElementById('expenseAmount').value);
+
+    if (!description || isNaN(amount)) {
+        alert('Please fill in all expense details correctly');
+        return;
+    }
 
     try {
         await api.addExpense({ description, amount });
         alert('Expense added successfully!');
         document.getElementById('addExpenseForm').reset();
-        loadExpenses();
-        updateSummaryCards();
+        await loadExpenses();
     } catch (error) {
+        console.error('Error adding expense:', error);
         alert('Error adding expense: ' + error.message);
     }
 }
@@ -662,20 +638,21 @@ function renderDonations(donations) {
 // Handle add donation
 async function handleAddDonation(e) {
     e.preventDefault();
-    if (!authToken) {
-        alert('Please login as admin to record donations');
-        return;
-    }
     const donorName = document.getElementById('donorName').value;
     const amount = parseFloat(document.getElementById('donationAmount').value);
+
+    if (!donorName || isNaN(amount)) {
+        alert('Please fill in all donation details correctly');
+        return;
+    }
 
     try {
         await api.addDonation({ donorName, amount });
         alert('Donation recorded successfully!');
         document.getElementById('addDonationForm').reset();
-        loadDonations();
-        updateSummaryCards();
+        await loadDonations();
     } catch (error) {
+        console.error('Error recording donation:', error);
         alert('Error recording donation: ' + error.message);
     }
 }
@@ -939,36 +916,123 @@ async function loadWeeklyAnalysis(year = 2025, month = 'all') {
     }
 }
 
-// Handle edit member
+// Edit member function
+async function editMember(memberId) {
+    try {
+        const member = await api.getMember(memberId);
+        if (!member) {
+            throw new Error('Member not found');
+        }
+
+        document.getElementById('editMemberId').value = memberId;
+        document.getElementById('editMemberName').value = member.name;
+        document.getElementById('editMemberPhone').value = member.phone;
+        document.getElementById('editMemberPhoto').value = member.photo || '';
+        document.getElementById('editPhotoPreview').src = member.photo || DEFAULT_AVATAR;
+        editMemberModal.style.display = 'block';
+    } catch (error) {
+        console.error('Error loading member details:', error);
+        alert('Error loading member details: ' + error.message);
+    }
+}
+
+// Handle edit member form submission
 async function handleEditMember(e) {
     e.preventDefault();
     const memberId = document.getElementById('editMemberId').value;
     const name = document.getElementById('editMemberName').value;
     const phone = document.getElementById('editMemberPhone').value;
-    const photoUrl = document.getElementById('editMemberPhoto').value.trim();
+    const photo = document.getElementById('editMemberPhoto').value;
 
     try {
-        const updateData = {
-            name,
-            phone,
-            photo: photoUrl || null
-        };
-
-        await api.updateMember(memberId, updateData);
-        alert('Member details updated successfully!');
+        await api.updateMember(memberId, { name, phone, photo });
+        alert('Member updated successfully!');
         editMemberModal.style.display = 'none';
-        loadData();
+        await loadData();
     } catch (error) {
+        console.error('Error updating member:', error);
         alert('Error updating member: ' + error.message);
     }
 }
 
-// Open edit modal with member data
-function openEditModal(member) {
-    document.getElementById('editMemberId').value = member._id;
-    document.getElementById('editMemberName').value = member.name;
-    document.getElementById('editMemberPhone').value = member.phone;
-    document.getElementById('editMemberPhoto').value = member.photo || '';
-    document.getElementById('editPhotoPreview').src = member.photo || DEFAULT_AVATAR;
-    editMemberModal.style.display = 'flex';
+// Delete member function
+async function deleteMember(memberId) {
+    if (!confirm('Are you sure you want to delete this member?')) {
+        return;
+    }
+
+    try {
+        await api.deleteMember(memberId);
+        alert('Member deleted successfully!');
+        await loadData();
+    } catch (error) {
+        console.error('Error deleting member:', error);
+        alert('Error deleting member: ' + error.message);
+    }
+}
+
+// Handle add expense
+async function handleAddExpense(e) {
+    e.preventDefault();
+    const description = document.getElementById('expenseDescription').value;
+    const amount = parseFloat(document.getElementById('expenseAmount').value);
+
+    if (!description || isNaN(amount)) {
+        alert('Please fill in all expense details correctly');
+        return;
+    }
+
+    try {
+        await api.addExpense({ description, amount });
+        alert('Expense added successfully!');
+        document.getElementById('addExpenseForm').reset();
+        await loadExpenses();
+    } catch (error) {
+        console.error('Error adding expense:', error);
+        alert('Error adding expense: ' + error.message);
+    }
+}
+
+// Load and render expenses
+async function loadExpenses() {
+    try {
+        const expenses = await api.getExpenses();
+        renderExpenses(expenses);
+    } catch (error) {
+        console.error('Error loading expenses:', error);
+        alert('Error loading expenses: ' + error.message);
+    }
+}
+
+// Handle add donation
+async function handleAddDonation(e) {
+    e.preventDefault();
+    const donorName = document.getElementById('donorName').value;
+    const amount = parseFloat(document.getElementById('donationAmount').value);
+
+    if (!donorName || isNaN(amount)) {
+        alert('Please fill in all donation details correctly');
+        return;
+    }
+
+    try {
+        await api.addDonation({ donorName, amount });
+        alert('Donation recorded successfully!');
+        document.getElementById('addDonationForm').reset();
+        await loadDonations();
+    } catch (error) {
+        console.error('Error recording donation:', error);
+        alert('Error recording donation: ' + error.message);
+    }
+}
+
+// Load and render donations
+async function loadDonations() {
+    try {
+        const donations = await api.getDonations();
+        renderDonations(donations);
+    } catch (error) {
+        console.error('Error loading donations:', error);
+        alert('Error loading donations: ' + error.message);
+    }
 } 
