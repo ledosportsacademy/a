@@ -365,13 +365,22 @@ function setupEventListeners() {
         }
     });
 
-    // Cancel edit button
-    document.getElementById('cancelEdit').addEventListener('click', () => {
-        editMemberModal.style.display = 'none';
-    });
+    // Edit member form
+    const editMemberForm = document.getElementById('editMemberForm');
+    if (editMemberForm) {
+        editMemberForm.addEventListener('submit', handleEditMember);
+    }
 
-    // Edit member form submission
-    editMemberForm.addEventListener('submit', handleEditMember);
+    // Photo preview in edit form
+    const editMemberPhoto = document.getElementById('editMemberPhoto');
+    if (editMemberPhoto) {
+        editMemberPhoto.addEventListener('input', function() {
+            const previewImg = document.getElementById('editPhotoPreview');
+            if (previewImg) {
+                previewImg.src = this.value || DEFAULT_AVATAR;
+            }
+        });
+    }
 
     // Form submissions
     document.getElementById('addMemberForm').addEventListener('submit', handleAddMember);
@@ -399,11 +408,6 @@ function setupEventListeners() {
     // Photo preview for new member
     document.getElementById('memberPhoto').addEventListener('change', function() {
         handleUrlPreview(this, 'photoPreview');
-    });
-
-    // Photo preview for edit member
-    document.getElementById('editMemberPhoto').addEventListener('change', function() {
-        handleUrlPreview(this, 'editPhotoPreview');
     });
 }
 
@@ -965,16 +969,34 @@ async function loadWeeklyAnalysis(year = 2025, month = 'all') {
 // Edit member function
 async function editMember(memberId) {
     try {
-        const member = await api.getMember(memberId);
+        console.log('Loading member details for:', memberId);
+        const response = await fetch(`${API_URL}/api/members/${memberId}`);
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        }
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Server returned non-JSON response');
+        }
+
+        const member = await response.json();
+        console.log('Loaded member details:', member);
+
         if (!member) {
             throw new Error('Member not found');
         }
 
-        document.getElementById('editMemberId').value = memberId;
-        document.getElementById('editMemberName').value = member.name;
-        document.getElementById('editMemberPhone').value = member.phone;
+        // Populate the edit form
+        document.getElementById('editMemberId').value = member._id;
+        document.getElementById('editMemberName').value = member.name || '';
+        document.getElementById('editMemberPhone').value = member.phone || '';
         document.getElementById('editMemberPhoto').value = member.photo || '';
         document.getElementById('editPhotoPreview').src = member.photo || DEFAULT_AVATAR;
+
+        // Show the modal
         editMemberModal.style.display = 'block';
     } catch (error) {
         console.error('Error loading member details:', error);
@@ -986,12 +1008,37 @@ async function editMember(memberId) {
 async function handleEditMember(e) {
     e.preventDefault();
     const memberId = document.getElementById('editMemberId').value;
-    const name = document.getElementById('editMemberName').value;
-    const phone = document.getElementById('editMemberPhone').value;
-    const photo = document.getElementById('editMemberPhoto').value;
+    const name = document.getElementById('editMemberName').value.trim();
+    const phone = document.getElementById('editMemberPhone').value.trim();
+    const photo = document.getElementById('editMemberPhoto').value.trim();
+
+    if (!name || !phone) {
+        alert('Name and phone number are required');
+        return;
+    }
 
     try {
-        await api.updateMember(memberId, { name, phone, photo });
+        console.log('Updating member:', { memberId, name, phone, photo });
+        const response = await fetch(`${API_URL}/api/members/${memberId}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ name, phone, photo })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || 'Failed to update member');
+        }
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Server returned non-JSON response');
+        }
+
+        await response.json(); // Make sure we can parse the response
         alert('Member updated successfully!');
         editMemberModal.style.display = 'none';
         await loadData();
