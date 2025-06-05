@@ -25,9 +25,38 @@
     </header>
 
     <div class="container">
+        <div class="summary-cards">
+            <div class="summary-card">
+                <h3>Total Members</h3>
+                <p id="totalMembers">0</p>
+            </div>
+            <div class="summary-card">
+                <h3>Paid This Week</h3>
+                <p id="paidThisWeek">0</p>
+            </div>
+            <div class="summary-card">
+                <h3>Unpaid This Week</h3>
+                <p id="unpaidThisWeek">0</p>
+            </div>
+            <div class="summary-card">
+                <h3>Total Collected</h3>
+                <p id="totalCollected">₹0</p>
+            </div>
+        </div>
+        
+        <div class="weeks-container" id="weeksContainer" role="tablist"></div>
+        
         <div class="purpose-section card">
-            <h2>Purpose of Membership Fund</h2>
-            <p>The membership funds collected will be utilized for the development and growth of our sports club.</p>
+            <h2 class="section-title">Purpose of Membership Fund</h2>
+            <div class="purpose-content">
+                <p>The membership funds collected will be utilized for:</p>
+                <ul class="purpose-list">
+                    <li>Development and maintenance of sports facilities</li>
+                    <li>Purchase of sports equipment and gear</li>
+                    <li>Organizing sports events and tournaments</li>
+                    <li>Supporting talented athletes</li>
+                </ul>
+            </div>
         </div>
 
         <!-- Members Section -->
@@ -60,27 +89,6 @@
             </div>
         </div>
 
-        <div class="summary-cards">
-            <div class="summary-card">
-                <h3>Total Members</h3>
-                <p id="totalMembers">0</p>
-            </div>
-            <div class="summary-card">
-                <h3>Paid This Week</h3>
-                <p id="paidThisWeek">0</p>
-            </div>
-            <div class="summary-card">
-                <h3>Unpaid This Week</h3>
-                <p id="unpaidThisWeek">0</p>
-            </div>
-            <div class="summary-card">
-                <h3>Total Collected</h3>
-                <p id="totalCollected">₹0</p>
-            </div>
-        </div>
-        
-        <div class="weeks-container" id="weeksContainer" role="tablist"></div>
-        
         <nav class="tabs" role="navigation">
             <button class="tab-btn active" data-tab="members" role="tab">Members</button>
             <button class="tab-btn" data-tab="expenses" role="tab">Expenses</button>
