@@ -3,13 +3,33 @@ const Member = require('../models/Member');
 const auth = require('../middleware/auth');
 const router = express.Router();
 
-// Get all members (public route)
+// Get all members (public route with limited data)
 router.get('/', async (req, res) => {
     try {
-        console.log('Fetching all members...');
+        console.log('Fetching members...');
         const members = await Member.find().sort({ name: 1 });
-        console.log(`Found ${members.length} members`);
-        res.json(members);
+        
+        // Check if user is authenticated
+        const isAdmin = req.header('Authorization')?.startsWith('Bearer ');
+        
+        // Filter data based on authentication
+        const filteredMembers = members.map(member => {
+            const publicMember = {
+                _id: member._id,
+                name: member.name,
+                photo: member.photo,
+                active: member.active
+            };
+            
+            if (isAdmin) {
+                publicMember.phone = member.phone;
+            }
+            
+            return publicMember;
+        });
+
+        console.log(`Returning ${filteredMembers.length} members`);
+        res.json(filteredMembers);
     } catch (error) {
         console.error('Error fetching members:', error);
         res.status(500).json({ 
@@ -19,8 +39,40 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Get single member by ID
-router.get('/:id', async (req, res) => {
+// Get payments (public route)
+router.get('/payments', async (req, res) => {
+    try {
+        const payments = await Payment.find()
+            .populate('member', '_id name')
+            .sort('-createdAt');
+        res.json(payments);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Get expenses (public route)
+router.get('/expenses', async (req, res) => {
+    try {
+        const expenses = await Expense.find().sort('-createdAt');
+        res.json(expenses);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Get donations (public route)
+router.get('/donations', async (req, res) => {
+    try {
+        const donations = await Donation.find().sort('-createdAt');
+        res.json(donations);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Get single member by ID (admin only)
+router.get('/:id', auth, async (req, res) => {
     try {
         console.log('Fetching member by ID:', req.params.id);
         const member = await Member.findById(req.params.id);
