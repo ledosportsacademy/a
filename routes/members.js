@@ -19,6 +19,28 @@ router.get('/', async (req, res) => {
     }
 });
 
+// Get single member by ID
+router.get('/:id', async (req, res) => {
+    try {
+        console.log('Fetching member by ID:', req.params.id);
+        const member = await Member.findById(req.params.id);
+        
+        if (!member) {
+            console.log('Member not found:', req.params.id);
+            return res.status(404).json({ message: 'Member not found' });
+        }
+        
+        console.log('Member found:', member);
+        res.json(member);
+    } catch (error) {
+        console.error('Error fetching member:', error);
+        res.status(500).json({ 
+            message: 'Error fetching member details',
+            error: error.message 
+        });
+    }
+});
+
 // Add new member (admin only)
 router.post('/', auth, async (req, res) => {
     try {
