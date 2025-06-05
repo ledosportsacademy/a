@@ -249,8 +249,24 @@ async function init() {
         setupEventListeners();
         
         // Check authentication and show/hide admin elements
-        const authToken = localStorage.getItem('authToken');
-        if (authToken) {
+        const isAdmin = !!localStorage.getItem('authToken');
+        
+        // Hide admin-only sections by default
+        document.querySelectorAll('.admin-only').forEach(el => {
+            el.style.display = 'none';
+        });
+        document.getElementById('adminPanel').style.display = 'none';
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            if (btn.getAttribute('data-tab') === 'expenses' || 
+                btn.getAttribute('data-tab') === 'donations') {
+                btn.style.display = 'none';
+            }
+        });
+        document.getElementById('expenses-tab').style.display = 'none';
+        document.getElementById('donations-tab').style.display = 'none';
+
+        if (isAdmin) {
+            // Show admin elements
             document.querySelectorAll('.admin-only').forEach(el => {
                 el.style.display = el.tagName.toLowerCase() === 'td' ? 'table-cell' : 'block';
             });
@@ -259,21 +275,21 @@ async function init() {
             });
             document.getElementById('adminToggle').textContent = 'Logout';
             document.getElementById('adminPanel').style.display = 'block';
-        } else {
-            document.querySelectorAll('.admin-only').forEach(el => {
-                el.style.display = 'none';
+            
+            // Show admin tabs
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.style.display = 'block';
             });
-            document.querySelectorAll('.auth-only').forEach(el => {
-                el.style.display = 'block';
-            });
-            document.getElementById('adminToggle').textContent = 'Click to Login';
-            document.getElementById('adminPanel').style.display = 'none';
+            document.getElementById('expenses-tab').style.display = 'block';
+            document.getElementById('donations-tab').style.display = 'block';
+
+            // Load admin data
+            await loadExpenses();
+            await loadDonations();
         }
 
-        // Load initial data
+        // Load members data (will be filtered based on auth status)
         await loadData();
-        await loadExpenses();
-        await loadDonations();
     } catch (error) {
         console.error('Initialization error:', error);
         alert('Error initializing application: ' + error.message);
@@ -463,7 +479,7 @@ async function loadData() {
     try {
         console.log('Loading members data...');
         
-        // First update payment statuses
+        // Always update payment statuses
         await updatePaymentStatuses();
         
         const members = await api.getMembers();
@@ -481,10 +497,10 @@ async function loadData() {
         }
 
         membersTableBody.innerHTML = '';
+        const isAdmin = !!localStorage.getItem('authToken');
 
         members.forEach(member => {
             const row = document.createElement('tr');
-            const isAdmin = !!localStorage.getItem('authToken');
             const isPaid = getPaymentStatus(member._id);
             
             row.innerHTML = `
@@ -493,13 +509,13 @@ async function loadData() {
                 </td>
                 <td>${formatMemberId(member._id)}</td>
                 <td>${member.name}</td>
-                <td>${member.phone}</td>
+                <td class="admin-only" style="display: none;">${member.phone}</td>
                 <td>
                     <span class="badge ${isPaid ? 'badge-success' : 'badge-danger'}">
                         ${isPaid ? 'Paid' : 'Unpaid'}
                     </span>
                 </td>
-                <td>
+                <td class="admin-only" style="display: none;">
                     ${isAdmin ? `
                         ${!isPaid ? `<button onclick="showPaymentModal('${member._id}')" class="btn btn-sm btn-success">Pay</button>` : ''}
                         <button onclick="editMember('${member._id}')" class="btn btn-sm btn-edit">Edit</button>
@@ -510,6 +526,18 @@ async function loadData() {
             
             membersTableBody.appendChild(row);
         });
+
+        // Update table headers
+        const table = document.querySelector('#membersTable');
+        const headerRow = table.querySelector('thead tr');
+        headerRow.innerHTML = `
+            <th>Photo</th>
+            <th>ID</th>
+            <th>Name</th>
+            ${isAdmin ? '<th>Phone</th>' : ''}
+            <th>Status</th>
+            ${isAdmin ? '<th>Actions</th>' : ''}
+        `;
 
         console.log('Members data loaded successfully');
         await updateSummaryCards();
@@ -611,15 +639,6 @@ async function handleRecordPayment(e) {
 async function loadExpenses() {
     try {
         const expenses = await api.getExpenses();
-        renderExpenses(expenses);
-    } catch (error) {
-        console.error('Error loading expenses:', error);
-    }
-}
-
-// Render expenses
-function renderExpenses(expenses) {
-    try {
         const tbody = document.querySelector('#expensesTable tbody');
         if (!tbody) {
             console.error('Expenses table body not found');
@@ -627,10 +646,7 @@ function renderExpenses(expenses) {
         }
 
         tbody.innerHTML = '';
-        if (!Array.isArray(expenses)) {
-            console.error('Invalid expenses data:', expenses);
-            return;
-        }
+        const isAdmin = !!localStorage.getItem('authToken');
 
         expenses.forEach(expense => {
             const row = document.createElement('tr');
@@ -638,20 +654,27 @@ function renderExpenses(expenses) {
                 <td>${formatDate(expense.createdAt)}</td>
                 <td>${expense.description}</td>
                 <td>${formatCurrency(expense.amount)}</td>
-                <td class="admin-only" style="display: none;">
-                    <button onclick="deleteExpense('${expense._id}')" class="btn btn-sm btn-danger">Delete</button>
-                </td>
+                ${isAdmin ? `
+                    <td class="admin-only" style="display: none;">
+                        <button onclick="deleteExpense('${expense._id}')" class="btn btn-sm btn-danger">Delete</button>
+                    </td>
+                ` : ''}
             `;
             tbody.appendChild(row);
         });
 
-        // Show/hide admin controls
-        const isAdmin = !!localStorage.getItem('authToken');
-        document.querySelectorAll('.admin-only').forEach(el => {
-            el.style.display = isAdmin ? 'table-cell' : 'none';
-        });
+        // Update table headers
+        const table = document.querySelector('#expensesTable');
+        const headerRow = table.querySelector('thead tr');
+        headerRow.innerHTML = `
+            <th>Date</th>
+            <th>Description</th>
+            <th>Amount</th>
+            ${isAdmin ? '<th>Actions</th>' : ''}
+        `;
     } catch (error) {
-        console.error('Error rendering expenses:', error);
+        console.error('Error loading expenses:', error);
+        alert('Error loading expenses: ' + error.message);
     }
 }
 
@@ -697,15 +720,6 @@ async function deleteExpense(expenseId) {
 async function loadDonations() {
     try {
         const donations = await api.getDonations();
-        renderDonations(donations);
-    } catch (error) {
-        console.error('Error loading donations:', error);
-    }
-}
-
-// Render donations
-function renderDonations(donations) {
-    try {
         const tbody = document.querySelector('#donationsTable tbody');
         if (!tbody) {
             console.error('Donations table body not found');
@@ -713,10 +727,6 @@ function renderDonations(donations) {
         }
 
         tbody.innerHTML = '';
-        if (!Array.isArray(donations)) {
-            console.error('Invalid donations data:', donations);
-            return;
-        }
 
         donations.forEach(donation => {
             const row = document.createElement('tr');
@@ -728,7 +738,8 @@ function renderDonations(donations) {
             tbody.appendChild(row);
         });
     } catch (error) {
-        console.error('Error rendering donations:', error);
+        console.error('Error loading donations:', error);
+        alert('Error loading donations: ' + error.message);
     }
 }
 
