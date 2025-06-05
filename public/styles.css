@@ -1028,4 +1028,84 @@ footer {
         padding: 0.6rem;
         font-size: 0.9rem;
     }
+}
+
+/* Enhanced table styles for members list */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -1rem;
+    padding: 0 1rem;
+}
+
+#membersTable {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 1rem 0;
+}
+
+#membersTable th,
+#membersTable td {
+    padding: 0.8rem;
+    text-align: left;
+    vertical-align: middle;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+#membersTable th {
+    font-weight: 600;
+    color: var(--primary);
+    background: #f8fafc;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+#membersTable .member-photo {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+#membersTable .member-photo:hover {
+    transform: scale(1.1);
+}
+
+#membersTable .badge {
+    padding: 0.3rem 0.6rem;
+    border-radius: 9999px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+#membersTable .btn-sm {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+    margin: 0 0.2rem;
+}
+
+@media (max-width: 768px) {
+    #membersTable {
+        font-size: 0.9rem;
+    }
+
+    #membersTable th,
+    #membersTable td {
+        padding: 0.6rem;
+    }
+
+    #membersTable .member-photo {
+        width: 32px;
+        height: 32px;
+    }
+
+    #membersTable .btn-sm {
+        padding: 0.3rem 0.6rem;
+        font-size: 0.8rem;
+        margin: 0.1rem;
+    }
 } 
