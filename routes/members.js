@@ -3,8 +3,8 @@ const Member = require('../models/Member');
 const auth = require('../middleware/auth');
 const router = express.Router();
 
-// Get all members
-router.get('/', auth, async (req, res) => {
+// Get all members (public route)
+router.get('/', async (req, res) => {
     try {
         const members = await Member.find().sort({ name: 1 });
         res.json(members);
@@ -13,7 +13,7 @@ router.get('/', auth, async (req, res) => {
     }
 });
 
-// Add new member
+// Add new member (admin only)
 router.post('/', auth, async (req, res) => {
     try {
         const member = new Member(req.body);
@@ -24,7 +24,7 @@ router.post('/', auth, async (req, res) => {
     }
 });
 
-// Update member
+// Update member (admin only)
 router.put('/:id', auth, async (req, res) => {
     try {
         const member = await Member.findByIdAndUpdate(
@@ -41,7 +41,7 @@ router.put('/:id', auth, async (req, res) => {
     }
 });
 
-// Delete member
+// Delete member (admin only)
 router.delete('/:id', auth, async (req, res) => {
     try {
         const member = await Member.findByIdAndDelete(req.params.id);
