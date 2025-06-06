@@ -71,6 +71,52 @@ router.get('/donations', async (req, res) => {
     }
 });
 
+// Get summary statistics (public route)
+router.get('/summary', async (req, res) => {
+    try {
+        const { weekNumber, year } = req.query;
+        const currentWeek = weekNumber || Math.ceil((new Date() - new Date(2025, 5, 1)) / (7 * 24 * 60 * 60 * 1000));
+        const currentYear = year || 2025;
+
+        // Get total members
+        const totalMembers = await Member.countDocuments();
+
+        // Get weekly payment stats
+        const weeklyStats = await Payment.aggregate([
+            { $match: { weekNumber: parseInt(currentWeek), year: parseInt(currentYear) } },
+            { $group: { _id: null, count: { $sum: 1 }, total: { $sum: '$amount' } } }
+        ]);
+
+        // Get total collections
+        const totalCollections = await Payment.aggregate([
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]);
+
+        // Get total expenses
+        const totalExpenses = await Expense.aggregate([
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]);
+
+        // Get total donations
+        const totalDonations = await Donation.aggregate([
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]);
+
+        res.json({
+            totalMembers,
+            weeklyPaidCount: weeklyStats[0]?.count || 0,
+            weeklyUnpaidCount: totalMembers - (weeklyStats[0]?.count || 0),
+            weeklyCollection: weeklyStats[0]?.total || 0,
+            totalCollections: totalCollections[0]?.total || 0,
+            totalExpenses: totalExpenses[0]?.total || 0,
+            totalDonations: totalDonations[0]?.total || 0
+        });
+    } catch (error) {
+        console.error('Error getting summary:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // Get single member by ID (admin only)
 router.get('/:id', auth, async (req, res) => {
     try {
