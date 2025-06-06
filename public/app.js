@@ -264,12 +264,14 @@ async function init() {
             });
             document.getElementById('adminToggle').textContent = 'Logout';
             document.getElementById('adminPanel').style.display = 'block';
+            
+            // Load admin-only data
+            await loadExpenses();
+            await loadDonations();
         }
 
-        // Load all data
+        // Load public data
         await loadData();
-        await loadExpenses();
-        await loadDonations();
     } catch (error) {
         console.error('Initialization error:', error);
         alert('Error initializing application: ' + error.message);
@@ -295,10 +297,15 @@ function switchTab(tabId) {
     // Load data for the selected tab
     if (tabId === 'members') {
         loadData();
-    } else if (tabId === 'expenses') {
-        loadExpenses();
-    } else if (tabId === 'donations') {
-        loadDonations();
+    } else if (tabId === 'expenses' || tabId === 'donations') {
+        const isAdmin = !!localStorage.getItem('authToken');
+        if (isAdmin) {
+            if (tabId === 'expenses') {
+                loadExpenses();
+            } else {
+                loadDonations();
+            }
+        }
     }
 }
 
@@ -703,6 +710,7 @@ async function loadDonations() {
         }
 
         tbody.innerHTML = '';
+        const isAdmin = !!localStorage.getItem('authToken');
 
         donations.forEach(donation => {
             const row = document.createElement('tr');
