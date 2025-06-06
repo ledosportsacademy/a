@@ -1,5 +1,8 @@
 const express = require('express');
 const Member = require('../models/Member');
+const Payment = require('../models/Payment');
+const Expense = require('../models/Expense');
+const Donation = require('../models/Donation');
 const auth = require('../middleware/auth');
 const router = express.Router();
 
@@ -7,10 +10,24 @@ const router = express.Router();
 router.get('/', async (req, res) => {
     try {
         console.log('Fetching members...');
+        
+        // Check MongoDB connection
+        if (Member.db.readyState !== 1) {
+            console.error('MongoDB not connected. Current state:', Member.db.readyState);
+            throw new Error('Database connection error');
+        }
+        
         const members = await Member.find().sort({ name: 1 });
+        console.log(`Found ${members.length} members`);
+        
+        if (!Array.isArray(members)) {
+            console.error('Invalid members data type:', typeof members);
+            throw new Error('Invalid data format from database');
+        }
         
         // Check if user is authenticated
         const isAdmin = req.header('Authorization')?.startsWith('Bearer ');
+        console.log('Request is admin:', isAdmin);
         
         // Filter data based on authentication
         const filteredMembers = members.map(member => {
@@ -28,10 +45,16 @@ router.get('/', async (req, res) => {
             return publicMember;
         });
 
-        console.log(`Returning ${filteredMembers.length} members`);
+        console.log(`Returning ${filteredMembers.length} filtered members`);
         res.json(filteredMembers);
     } catch (error) {
         console.error('Error fetching members:', error);
+        if (error.name === 'MongooseError' || error.name === 'MongoError') {
+            return res.status(503).json({ 
+                message: 'Database service unavailable',
+                error: error.message 
+            });
+        }
         res.status(500).json({ 
             message: 'Server error while fetching members',
             error: error.message 
