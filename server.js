@@ -19,12 +19,13 @@ const allowedOrigins = [
     'https://ledo.onrender.com'
 ];
 
-// Log the actual origin for debugging
+// Request logging middleware
 app.use((req, res, next) => {
-    console.log('Incoming request origin:', req.headers.origin);
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
     next();
 });
 
+// CORS middleware
 app.use(cors({
     origin: function(origin, callback) {
         console.log('Checking origin:', origin);
@@ -49,8 +50,9 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Middleware
-app.use(express.json());
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://ledosportsacademy:KYbsTxWjVBvPnREP@ledosportsacademy.ejcd06z.mongodb.net/ledosportsacademy?retryWrites=true&w=majority';
@@ -62,7 +64,9 @@ console.log('MongoDB URI exists:', !!MONGODB_URI);
 
 mongoose.connect(MONGODB_URI, {
     useNewUrlParser: true,
-    useUnifiedTopology: true
+    useUnifiedTopology: true,
+    serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+    socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
 })
 .then(() => {
     console.log('Successfully connected to MongoDB Atlas');
@@ -72,6 +76,15 @@ mongoose.connect(MONGODB_URI, {
     console.error('MongoDB connection error details:');
     console.error(err);
     process.exit(1);
+});
+
+// Monitor MongoDB connection
+mongoose.connection.on('error', err => {
+    console.error('MongoDB connection error:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+    console.log('MongoDB disconnected');
 });
 
 // Routes
@@ -93,10 +106,33 @@ app.get('/health', (req, res) => {
 // Serve static files
 app.use(express.static('public'));
 
+// 404 handler
+app.use((req, res, next) => {
+    res.status(404).json({ message: 'Route not found' });
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ 
+    console.error('Error occurred:', err);
+    
+    // Handle CORS errors
+    if (err.message === 'Not allowed by CORS') {
+        return res.status(403).json({
+            message: 'CORS error: Origin not allowed',
+            error: process.env.NODE_ENV === 'development' ? err.message : 'Access denied'
+        });
+    }
+    
+    // Handle JSON parsing errors
+    if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+        return res.status(400).json({ 
+            message: 'Invalid JSON',
+            error: process.env.NODE_ENV === 'development' ? err.message : 'Bad request'
+        });
+    }
+    
+    // Default error response
+    res.status(err.status || 500).json({ 
         message: 'Something went wrong!',
         error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
     });
