@@ -200,6 +200,10 @@ const api = {
 
     async getWeeklyAnalysis(year) {
         return await this.request(`/payments/weekly-analysis?year=${year}`);
+    },
+
+    async getSummary(weekNumber, year) {
+        return await this.request(`/api/members/summary?weekNumber=${weekNumber}&year=${year}`);
     }
 };
 
@@ -625,7 +629,7 @@ async function handleRecordPayment(e) {
 // Load expenses
 async function loadExpenses() {
     try {
-        const expenses = await api.getExpenses();
+        const expenses = await api.request('/api/members/expenses');
         const tbody = document.querySelector('#expensesTable tbody');
         if (!tbody) {
             console.error('Expenses table body not found');
@@ -642,7 +646,7 @@ async function loadExpenses() {
                 <td>${expense.description}</td>
                 <td>${formatCurrency(expense.amount)}</td>
                 ${isAdmin ? `
-                    <td class="admin-only" style="display: none;">
+                    <td class="admin-only">
                         <button onclick="deleteExpense('${expense._id}')" class="btn btn-sm btn-danger">Delete</button>
                     </td>
                 ` : ''}
@@ -702,7 +706,7 @@ async function deleteExpense(expenseId) {
 // Load donations
 async function loadDonations() {
     try {
-        const donations = await api.getDonations();
+        const donations = await api.request('/api/members/donations');
         const tbody = document.querySelector('#donationsTable tbody');
         if (!tbody) {
             console.error('Donations table body not found');
@@ -759,25 +763,18 @@ async function handleAddDonation(e) {
 async function updateSummaryCards() {
     try {
         const selectedWeek = document.querySelector('.week-btn.active')?.dataset.weekNumber || currentWeek;
-        const stats = await api.getPaymentStats(selectedWeek, 2025); // Fixed year as 2025
+        const stats = await api.getSummary(selectedWeek, currentYear);
         
-        // Get all members first
-        const members = await api.getMembers();
-        const totalMembers = members.length; // Get actual count of members
-
-        // Update total members
-        document.getElementById('totalMembers').textContent = totalMembers;
+        // Update members stats
+        document.getElementById('totalMembers').textContent = stats.totalMembers;
+        document.getElementById('paidThisWeek').textContent = stats.weeklyPaidCount;
+        document.getElementById('unpaidThisWeek').textContent = stats.weeklyUnpaidCount;
         
-        // Update paid members this week
-        const paidThisWeek = stats.weeklyPaidCount || 0;
-        document.getElementById('paidThisWeek').textContent = paidThisWeek;
-        
-        // Calculate unpaid members (total members minus paid members)
-        const unpaidThisWeek = totalMembers - paidThisWeek;
-        document.getElementById('unpaidThisWeek').textContent = unpaidThisWeek;
-        
-        // Update total collected
-        document.getElementById('totalCollected').textContent = formatCurrency(stats.totalCollected || 0);
+        // Update financial stats
+        document.getElementById('weeklyCollection').textContent = formatCurrency(stats.weeklyCollection);
+        document.getElementById('totalCollections').textContent = formatCurrency(stats.totalCollections);
+        document.getElementById('totalExpenses').textContent = formatCurrency(stats.totalExpenses);
+        document.getElementById('totalDonations').textContent = formatCurrency(stats.totalDonations);
     } catch (error) {
         console.error('Error updating summary:', error);
     }
