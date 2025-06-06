@@ -1108,4 +1108,63 @@ footer {
         font-size: 0.8rem;
         margin: 0.1rem;
     }
+}
+
+.summary-dashboard {
+    margin-bottom: 2rem;
+}
+
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.summary-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.summary-card h3 {
+    margin: 0 0 1rem 0;
+    color: #333;
+    font-size: 1.2rem;
+}
+
+.stat-group {
+    display: grid;
+    gap: 0.8rem;
+}
+
+.stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #eee;
+}
+
+.stat:last-child {
+    border-bottom: none;
+}
+
+.stat label {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.stat span {
+    font-weight: 600;
+    color: #333;
+}
+
+.stat span.positive {
+    color: #28a745;
+}
+
+.stat span.negative {
+    color: #dc3545;
 } 
